@@ -1,0 +1,17 @@
+[package]
+name = "atomik"
+version = "1.0.0"
+edition = "2018"
+repository = "https://github.com/DoumanAsh/atomik"
+readme = "README.md"
+license = "BSL-1.0"
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "README.md",
+    "LICENSE"
+]
+description = "Generic Atomic type"
+keywords = [
+    "atomic"
+]
