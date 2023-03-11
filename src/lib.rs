@@ -1,8 +1,15 @@
 //! Generic atomic
+//!
+//!# Features
+//!
+//!- `std` Enables `std` only traits;
 
 #![no_std]
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
+
+#[cfg(any(test, feature = "std"))]
+extern crate std;
 
 use core::mem;
 use core::cell::UnsafeCell;
@@ -23,6 +30,9 @@ pub struct Atomic<T> {
 }
 
 unsafe impl<T: Send> Sync for Atomic<T> {}
+#[cfg(feature = "std")]
+impl<T: Copy + std::panic::RefUnwindSafe> std::panic::RefUnwindSafe for Atomic<T> {}
+
 impl<T: Default> Default for Atomic<T> {
     #[inline(always)]
     fn default() -> Self {
@@ -68,7 +78,6 @@ impl<T> Atomic<T> {
             _ => unimplemented!(),
         }
     };
-
 
     #[inline]
     ///Creates a new instance

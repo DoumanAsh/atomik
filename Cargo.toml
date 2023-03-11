@@ -15,3 +15,6 @@ description = "Generic Atomic type"
 keywords = [
     "atomic"
 ]
+
+[features]
+std = []

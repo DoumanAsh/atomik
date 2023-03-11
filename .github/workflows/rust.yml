@@ -32,16 +32,17 @@ jobs:
         if rustup --version >/dev/null 2>&1; then
             rustup update
         else
-             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain stable
+             curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --default-toolchain nightly
              echo ::add-path::$HOME/.cargo/bin
         fi
 
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v1
-
     - name: Install Miri
       run: |
-        rustup component add miri
+        rustup toolchain install nightly
+        rustup +nightly component add miri
+
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v1
 
     - name: Rust version
       run: |
@@ -56,5 +57,5 @@ jobs:
 
     - name: Miri Test
       run: |
-          cargo miri test --features alloc
-          cargo miri test --release --features alloc
+          cargo +nightly miri test
+          cargo +nightly  miri test --release
