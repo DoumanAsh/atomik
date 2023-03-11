@@ -314,3 +314,24 @@ impl<T: Copy + fmt::Debug> fmt::Debug for Atomic<T> {
         fmt::Debug::fmt(&self.load(Ordering::Relaxed), fmt)
     }
 }
+
+impl<T> From<T> for Atomic<T> {
+    #[inline(always)]
+    fn from(value: T) -> Self {
+        Atomic::new(value)
+    }
+}
+
+impl<T> fmt::Pointer for Atomic<*mut T> {
+    #[inline(always)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Pointer::fmt(&self.load(Ordering::SeqCst), f)
+    }
+}
+
+impl<T> fmt::Pointer for Atomic<*const T> {
+    #[inline(always)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Pointer::fmt(&self.load(Ordering::SeqCst), f)
+    }
+}
