@@ -194,7 +194,7 @@ impl<T: Copy> Atomic<T> {
 }
 
 macro_rules! impl_common_spec {
-    ($ty:ident($atomic:ident)) => {
+    ($($ty:ident($atomic:ident)),*) => {$(
         impl Atomic<$ty> {
             /// Bitwise and with the current value, returning the previous value.
             #[inline]
@@ -227,11 +227,11 @@ macro_rules! impl_common_spec {
                 }
             }
         }
-    };
+    )*};
 }
 
 macro_rules! impl_math_spec {
-    ($ty:ident($atomic:ident)) => {
+    ($($ty:ident($atomic:ident)),*) => {$(
         impl Atomic<$ty> {
             #[inline]
             /// Minimum with the current value.
@@ -265,76 +265,41 @@ macro_rules! impl_math_spec {
                 }
             }
         }
-    };
+    )*};
 }
 
 #[cfg(target_has_atomic = "8")]
-impl_common_spec!(u8(AtomicU8));
+impl_common_spec!(i8(AtomicI8), u8(AtomicU8), bool(AtomicBool));
 #[cfg(target_has_atomic = "16")]
-impl_common_spec!(u16(AtomicU16));
+impl_common_spec!(i16(AtomicI16), u16(AtomicU16));
 #[cfg(target_has_atomic = "32")]
-impl_common_spec!(u32(AtomicU32));
+impl_common_spec!(i32(AtomicI32), u32(AtomicU32));
 #[cfg(target_has_atomic = "64")]
-impl_common_spec!(u64(AtomicU64));
+impl_common_spec!(i64(AtomicI64), u64(AtomicU64));
 
 #[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
-impl_common_spec!(usize(AtomicUsize));
+impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
 #[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
-impl_common_spec!(usize(AtomicUsize));
+impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
 #[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
-impl_common_spec!(usize(AtomicUsize));
+impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
 #[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
-impl_common_spec!(usize(AtomicUsize));
+impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
 
 #[cfg(target_has_atomic = "8")]
-impl_common_spec!(i8(AtomicI8));
+impl_math_spec!(i8(AtomicI8), u8(AtomicU8));
 #[cfg(target_has_atomic = "16")]
-impl_common_spec!(i16(AtomicI16));
+impl_math_spec!(i16(AtomicI16), u16(AtomicU16));
 #[cfg(target_has_atomic = "32")]
-impl_common_spec!(i32(AtomicI32));
+impl_math_spec!(i32(AtomicI32), u32(AtomicU32));
 #[cfg(target_has_atomic = "64")]
-impl_common_spec!(i64(AtomicI64));
-#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
-impl_common_spec!(isize(AtomicIsize));
-#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
-impl_common_spec!(isize(AtomicIsize));
-#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
-impl_common_spec!(isize(AtomicIsize));
-#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
-impl_common_spec!(isize(AtomicIsize));
-
-#[cfg(target_has_atomic = "8")]
-impl_math_spec!(u8(AtomicU8));
-#[cfg(target_has_atomic = "16")]
-impl_math_spec!(u16(AtomicU16));
-#[cfg(target_has_atomic = "32")]
-impl_math_spec!(u32(AtomicU32));
-#[cfg(target_has_atomic = "64")]
-impl_math_spec!(u64(AtomicU64));
+impl_math_spec!(i64(AtomicI64), u64(AtomicU64));
 
 #[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
-impl_math_spec!(usize(AtomicUsize));
+impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
 #[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
-impl_math_spec!(usize(AtomicUsize));
+impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
 #[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
-impl_math_spec!(usize(AtomicUsize));
+impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
 #[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
-impl_math_spec!(usize(AtomicUsize));
-
-#[cfg(target_has_atomic = "8")]
-impl_math_spec!(i8(AtomicI8));
-#[cfg(target_has_atomic = "16")]
-impl_math_spec!(i16(AtomicI16));
-#[cfg(target_has_atomic = "32")]
-impl_math_spec!(i32(AtomicI32));
-#[cfg(target_has_atomic = "64")]
-impl_math_spec!(i64(AtomicI64));
-#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
-impl_math_spec!(isize(AtomicIsize));
-#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
-impl_math_spec!(isize(AtomicIsize));
-#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
-impl_math_spec!(isize(AtomicIsize));
-#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
-impl_math_spec!(isize(AtomicIsize));
-
+impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));

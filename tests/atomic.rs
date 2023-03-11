@@ -1,5 +1,19 @@
 use atomik::{Atomic, Ordering};
 
+#[test]
+fn atomic_bool() {
+    static FLAG: Atomic::<bool> = Atomic::new(false);
+    assert_eq!(FLAG.load(Ordering::Relaxed), false);
+    FLAG.store(true, Ordering::Relaxed);
+    assert_eq!(FLAG.swap(false, Ordering::Relaxed), true);
+    assert_eq!(FLAG.compare_exchange(true, false, Ordering::Relaxed, Ordering::Relaxed), Err(false));
+    assert_eq!(FLAG.compare_exchange(false, true, Ordering::Relaxed, Ordering::Relaxed), Ok(false));
+    assert_eq!(FLAG.fetch_and(false, Ordering::Relaxed), true);
+    assert_eq!(FLAG.fetch_or(true, Ordering::Relaxed), false);
+    assert_eq!(FLAG.fetch_xor(false, Ordering::Relaxed), true);
+    assert_eq!(FLAG.load(Ordering::Relaxed), true);
+}
+
 macro_rules! impl_test_unsigned {
     ($ty:ident) => {
         static NUM: Atomic::<$ty> = Atomic::new(0);
