@@ -57,68 +57,8 @@ macro_rules! impl_atomic_base {
                     )
                 }
             }
-
-            pub fn atomic_fetch_and<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                unsafe {
-                    transmute_copy(&(*(dst as *const $atomic)).fetch_and(transmute_copy(&val), order))
-                }
-            }
-
-            pub fn atomic_fetch_or<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                unsafe {
-                    transmute_copy(&(*(dst as *const $atomic)).fetch_or(transmute_copy(&val), order))
-                }
-            }
-
-            pub fn atomic_fetch_xor<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                unsafe {
-                    transmute_copy(&(*(dst as *const $atomic)).fetch_xor(transmute_copy(&val), order))
-                }
-            }
-
-            pub fn atomic_fetch_nand<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                unsafe {
-                    transmute_copy(&(*(dst as *const $atomic)).fetch_nand(transmute_copy(&val), order))
-                }
-            }
         }
     };
-}
-
-macro_rules! impl_atomic_math {
-    ($($ty:ident($atomic:ident)),*) => {
-        pub mod math {$(
-            pub mod $ty {
-                use ::core::sync::atomic::$atomic;
-                //transmute() doesn't work with generics, until it is fixed, use transmute_copy
-                use ::core::mem::transmute_copy;
-
-                pub fn atomic_fetch_add<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                    unsafe {
-                        transmute_copy(&(*(dst as *const $atomic)).fetch_add(transmute_copy(&val), order))
-                    }
-                }
-
-                pub fn atomic_fetch_sub<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                    unsafe {
-                        transmute_copy(&(*(dst as *const $atomic)).fetch_sub(transmute_copy(&val), order))
-                    }
-                }
-
-                pub fn atomic_fetch_min<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                    unsafe {
-                        transmute_copy(&(*(dst as *const $atomic)).fetch_min(transmute_copy(&val), order))
-                    }
-                }
-
-                pub fn atomic_fetch_max<T>(dst: *mut T, val: T, order: $crate::Ordering) -> T {
-                    unsafe {
-                        transmute_copy(&(*(dst as *const $atomic)).fetch_max(transmute_copy(&val), order))
-                    }
-                }
-            }
-        )*}
-    }
 }
 
 impl_atomic_base!(bool(AtomicBool));
@@ -134,5 +74,3 @@ impl_atomic_base!(i16(AtomicI16));
 impl_atomic_base!(i32(AtomicI32));
 impl_atomic_base!(i64(AtomicI64));
 impl_atomic_base!(isize(AtomicIsize));
-
-impl_atomic_math!(u8(AtomicU8), u16(AtomicU16), u32(AtomicU32), u64(AtomicU64), usize(AtomicUsize), i8(AtomicI8), i16(AtomicI16), i32(AtomicI32), i64(AtomicI64), isize(AtomicIsize));

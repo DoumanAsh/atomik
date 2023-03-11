@@ -12,6 +12,7 @@
 
 use core::mem;
 use core::cell::UnsafeCell;
+use core::sync::atomic;
 pub use core::sync::atomic::Ordering;
 
 mod ops;
@@ -39,32 +40,6 @@ impl<T: Default> Default for Atomic<T> {
 }
 
 macro_rules! match_size_arm {
-    (INT $SIZE:expr => $fn:ident on $T:ident) => {
-        match $SIZE {
-            #[cfg(target_has_atomic = "8")]
-            1 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
-            #[cfg(target_has_atomic = "16")]
-            2 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
-            #[cfg(target_has_atomic = "32")]
-            4 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
-            #[cfg(target_has_atomic = "64")]
-            8 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
-            _ => unimplemented!(),
-        }
-    };
-    (::math => $SIZE:expr => $fn:ident on $T:ident) => {
-        match $SIZE {
-            #[cfg(target_has_atomic = "8")]
-            1 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
-            #[cfg(target_has_atomic = "16")]
-            2 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
-            #[cfg(target_has_atomic = "32")]
-            4 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
-            #[cfg(target_has_atomic = "64")]
-            8 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
-            _ => unimplemented!(),
-        }
-    };
     ($SIZE:expr => $fn:ident on $T:ident) => {
         match $SIZE {
             #[cfg(target_has_atomic = "8")]
@@ -192,94 +167,174 @@ impl<T: Copy> Atomic<T> {
     pub fn compare_exchange_weak(&self, current: T, new: T, success: Ordering, failure: Ordering) -> Result<T, T> {
         Self::CMP_EX_WEAK(self.inner_ptr(), current, new, success, failure)
     }
+
+    #[inline]
+
+    ///Fetches the value, and applies a function to it that returns an optional new value.
+    ///Returns a `Result` of `Ok(previous_value)` if the function returned `Some(_)`, else `Err(previous_value)`.
+    ///
+    ///Note: This may call the function multiple times if the value has been changed from other threads in the meantime, as long as the function returns Some(_), but the function will have been applied only once to the stored value.
+    ///
+    ///`fetch_update` takes two `Ordering` arguments to describe the memory ordering of this operation.
+    ///The first describes the required ordering for when the operation finally succeeds while the second describes the required ordering for loads.
+    ///These correspond to the success and failure orderings of `compare_exchange` respectively.
+    ///
+    ///Using `Acquire` as success ordering makes the store part of this operation `Relaxed`, and using `Release` makes the final successful load `Relaxed`.
+    ///The (failed) load ordering can only be `SeqCst`, `Acquire` or `Relaxed`.
+    pub fn fetch_update<F: FnMut(T) -> Option<T>>(&self, set_order: Ordering, fetch_order: Ordering, mut cb: F) -> Result<T, T> {
+        let mut prev = self.load(fetch_order);
+        while let Some(next) = cb(prev) {
+            match self.compare_exchange_weak(prev, next, set_order, fetch_order) {
+                res @ Ok(_) => return res,
+                Err(next_prev) => prev = next_prev,
+            }
+        }
+        Err(prev)
+    }
 }
 
-macro_rules! impl_common_ops {
-    ($($ty:ident),*) => ($(
+macro_rules! impl_common_spec {
+    ($ty:ident($atomic:ident)) => {
         impl Atomic<$ty> {
-            const FETCH_AND: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_and on $ty)
-            };
-            const FETCH_NAND: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_nand on $ty)
-            };
-            const FETCH_OR: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_or on $ty)
-            };
-            const FETCH_XOR: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_xor on $ty)
-            };
-
-            /// Add to the current value, returning the previous value.
-
             /// Bitwise and with the current value, returning the previous value.
             #[inline]
             pub fn fetch_and(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_AND(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_and(val, order)
+                }
             }
             /// Bitwise nand with the current value.
             #[inline]
             pub fn fetch_nand(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_NAND(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_nand(val, order)
+                }
             }
 
             /// Bitwise or with the current value, returning the previous value.
             #[inline]
             pub fn fetch_or(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_OR(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_or(val, order)
+                }
             }
 
             /// Bitwise xor with the current value, returning the previous value.
             #[inline]
             pub fn fetch_xor(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_XOR(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_xor(val, order)
+                }
             }
         }
-    )*);
+    };
 }
 
-macro_rules! impl_math_ops {
-    ($($ty:ident),*) => ($(
+macro_rules! impl_math_spec {
+    ($ty:ident($atomic:ident)) => {
         impl Atomic<$ty> {
-            const FETCH_ADD: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_add on $ty)
-            };
-            const FETCH_SUB: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_sub on $ty)
-            };
-            const FETCH_MIN: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_min on $ty)
-            };
-            const FETCH_MAX: fn(*mut $ty, $ty, Ordering) -> $ty = {
-                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_max on $ty)
-            };
-
             #[inline]
             /// Minimum with the current value.
             pub fn fetch_min(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_MIN(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_min(val, order)
+                }
             }
 
             #[inline]
             /// Maximum with the current value.
             pub fn fetch_max(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_MAX(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_max(val, order)
+                }
             }
 
             #[inline]
             /// Adds to the current value, returning the previous value.
             pub fn fetch_add(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_ADD(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_add(val, order)
+                }
             }
 
             /// Subtract from the current value, returning the previous value.
             #[inline]
             pub fn fetch_sub(&self, val: $ty, order: Ordering) -> $ty {
-                Self::FETCH_SUB(self.inner_ptr(), val, order)
+                unsafe {
+                    (*(self.inner_ptr() as *const atomic::$atomic)).fetch_sub(val, order)
+                }
             }
         }
-    )*);
+    };
 }
 
-impl_common_ops!(bool, u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
-impl_math_ops!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
+#[cfg(target_has_atomic = "8")]
+impl_common_spec!(u8(AtomicU8));
+#[cfg(target_has_atomic = "16")]
+impl_common_spec!(u16(AtomicU16));
+#[cfg(target_has_atomic = "32")]
+impl_common_spec!(u32(AtomicU32));
+#[cfg(target_has_atomic = "64")]
+impl_common_spec!(u64(AtomicU64));
+
+#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
+impl_common_spec!(usize(AtomicUsize));
+#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
+impl_common_spec!(usize(AtomicUsize));
+#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
+impl_common_spec!(usize(AtomicUsize));
+#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
+impl_common_spec!(usize(AtomicUsize));
+
+#[cfg(target_has_atomic = "8")]
+impl_common_spec!(i8(AtomicI8));
+#[cfg(target_has_atomic = "16")]
+impl_common_spec!(i16(AtomicI16));
+#[cfg(target_has_atomic = "32")]
+impl_common_spec!(i32(AtomicI32));
+#[cfg(target_has_atomic = "64")]
+impl_common_spec!(i64(AtomicI64));
+#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
+impl_common_spec!(isize(AtomicIsize));
+#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
+impl_common_spec!(isize(AtomicIsize));
+#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
+impl_common_spec!(isize(AtomicIsize));
+#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
+impl_common_spec!(isize(AtomicIsize));
+
+#[cfg(target_has_atomic = "8")]
+impl_math_spec!(u8(AtomicU8));
+#[cfg(target_has_atomic = "16")]
+impl_math_spec!(u16(AtomicU16));
+#[cfg(target_has_atomic = "32")]
+impl_math_spec!(u32(AtomicU32));
+#[cfg(target_has_atomic = "64")]
+impl_math_spec!(u64(AtomicU64));
+
+#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
+impl_math_spec!(usize(AtomicUsize));
+#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
+impl_math_spec!(usize(AtomicUsize));
+#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
+impl_math_spec!(usize(AtomicUsize));
+#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
+impl_math_spec!(usize(AtomicUsize));
+
+#[cfg(target_has_atomic = "8")]
+impl_math_spec!(i8(AtomicI8));
+#[cfg(target_has_atomic = "16")]
+impl_math_spec!(i16(AtomicI16));
+#[cfg(target_has_atomic = "32")]
+impl_math_spec!(i32(AtomicI32));
+#[cfg(target_has_atomic = "64")]
+impl_math_spec!(i64(AtomicI64));
+#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
+impl_math_spec!(isize(AtomicIsize));
+#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
+impl_math_spec!(isize(AtomicIsize));
+#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
+impl_math_spec!(isize(AtomicIsize));
+#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
+impl_math_spec!(isize(AtomicIsize));
+

@@ -37,6 +37,12 @@ macro_rules! impl_test_unsigned {
         NUM.store(0b101101, Ordering::Relaxed);
         assert_eq!(NUM.fetch_and(0b110011, Ordering::Relaxed), 0b101101);
         assert_eq!(NUM.load(Ordering::Relaxed), 0b100001);
+
+        NUM.store(7, Ordering::Relaxed);
+        assert_eq!(NUM.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| None), Err(7));
+        assert_eq!(NUM.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| Some(x + 1)), Ok(7));
+        assert_eq!(NUM.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| Some(x + 1)), Ok(8));
+        assert_eq!(NUM.load(Ordering::SeqCst), 9);
     };
 }
 
@@ -80,9 +86,13 @@ macro_rules! impl_test_signed {
         assert_eq!(NUM.fetch_and(0b110011, Ordering::Relaxed), 0b101101);
         assert_eq!(NUM.load(Ordering::Relaxed), 0b100001);
 
+        NUM.store(7, Ordering::Relaxed);
+        assert_eq!(NUM.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |_| None), Err(7));
+        assert_eq!(NUM.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| Some(x + 1)), Ok(7));
+        assert_eq!(NUM.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| Some(x + 1)), Ok(8));
+        assert_eq!(NUM.load(Ordering::SeqCst), 9);
     };
 }
-
 
 #[test]
 fn should_check_methods_work_on_u8() {
