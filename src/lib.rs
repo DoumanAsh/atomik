@@ -51,6 +51,7 @@ macro_rules! match_size_arm {
         }
     };
 }
+
 impl<T> Atomic<T> {
     //For this to affect compilation, this constant must be used
     //hence we slap assert in `new` which is only way to legit create atomic;
