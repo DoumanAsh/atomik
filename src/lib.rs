@@ -39,6 +39,32 @@ impl<T: Default> Default for Atomic<T> {
 }
 
 macro_rules! match_size_arm {
+    (INT $SIZE:expr => $fn:ident on $T:ident) => {
+        match $SIZE {
+            #[cfg(target_has_atomic = "8")]
+            1 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
+            #[cfg(target_has_atomic = "16")]
+            2 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
+            #[cfg(target_has_atomic = "32")]
+            4 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
+            #[cfg(target_has_atomic = "64")]
+            8 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::$T::$fn,
+            _ => unimplemented!(),
+        }
+    };
+    (::math => $SIZE:expr => $fn:ident on $T:ident) => {
+        match $SIZE {
+            #[cfg(target_has_atomic = "8")]
+            1 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
+            #[cfg(target_has_atomic = "16")]
+            2 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
+            #[cfg(target_has_atomic = "32")]
+            4 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
+            #[cfg(target_has_atomic = "64")]
+            8 if mem::align_of::<$T>() >= mem::align_of::<$T>() => ops::math::$T::$fn,
+            _ => unimplemented!(),
+        }
+    };
     ($SIZE:expr => $fn:ident on $T:ident) => {
         match $SIZE {
             #[cfg(target_has_atomic = "8")]
@@ -168,4 +194,92 @@ impl<T: Copy> Atomic<T> {
     }
 }
 
-//TODO: add `fetch_*` methods
+macro_rules! impl_common_ops {
+    ($($ty:ident),*) => ($(
+        impl Atomic<$ty> {
+            const FETCH_AND: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_and on $ty)
+            };
+            const FETCH_NAND: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_nand on $ty)
+            };
+            const FETCH_OR: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_or on $ty)
+            };
+            const FETCH_XOR: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(INT Self::TYPE_SIZE => atomic_fetch_xor on $ty)
+            };
+
+            /// Add to the current value, returning the previous value.
+
+            /// Bitwise and with the current value, returning the previous value.
+            #[inline]
+            pub fn fetch_and(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_AND(self.inner_ptr(), val, order)
+            }
+            /// Bitwise nand with the current value.
+            #[inline]
+            pub fn fetch_nand(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_NAND(self.inner_ptr(), val, order)
+            }
+
+            /// Bitwise or with the current value, returning the previous value.
+            #[inline]
+            pub fn fetch_or(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_OR(self.inner_ptr(), val, order)
+            }
+
+            /// Bitwise xor with the current value, returning the previous value.
+            #[inline]
+            pub fn fetch_xor(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_XOR(self.inner_ptr(), val, order)
+            }
+        }
+    )*);
+}
+
+macro_rules! impl_math_ops {
+    ($($ty:ident),*) => ($(
+        impl Atomic<$ty> {
+            const FETCH_ADD: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_add on $ty)
+            };
+            const FETCH_SUB: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_sub on $ty)
+            };
+            const FETCH_MIN: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_min on $ty)
+            };
+            const FETCH_MAX: fn(*mut $ty, $ty, Ordering) -> $ty = {
+                match_size_arm!(::math => Self::TYPE_SIZE => atomic_fetch_max on $ty)
+            };
+
+            #[inline]
+            /// Minimum with the current value.
+            pub fn fetch_min(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_MIN(self.inner_ptr(), val, order)
+            }
+
+            #[inline]
+            /// Maximum with the current value.
+            pub fn fetch_max(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_MAX(self.inner_ptr(), val, order)
+            }
+
+            #[inline]
+            /// Adds to the current value, returning the previous value.
+            pub fn fetch_add(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_ADD(self.inner_ptr(), val, order)
+            }
+
+            /// Subtract from the current value, returning the previous value.
+            #[inline]
+            pub fn fetch_sub(&self, val: $ty, order: Ordering) -> $ty {
+                Self::FETCH_SUB(self.inner_ptr(), val, order)
+            }
+        }
+    )*);
+}
+
+impl_common_ops!(bool, u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
+impl_math_ops!(u8, u16, u32, u64, usize, i8, i16, i32, i64, isize);
