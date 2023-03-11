@@ -10,7 +10,7 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
 
-use core::mem;
+use core::{fmt, mem};
 use core::cell::UnsafeCell;
 use core::sync::atomic;
 pub use core::sync::atomic::Ordering;
@@ -303,3 +303,10 @@ impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
 impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
 #[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
 impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
+
+impl<T: Copy + fmt::Debug> fmt::Debug for Atomic<T> {
+    #[inline(always)]
+    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.load(Ordering::Relaxed), fmt)
+    }
+}
