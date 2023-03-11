@@ -1,15 +1,14 @@
 //! Generic atomic
 //!
-//!# Features
+//!This Atomic allows only types whose size and alignment is compatible with `u8`, `u16`, `u32`, `u64`.
 //!
-//!- `std` Enables `std` only traits;
+//!With exception of `fetch_*` methods, all atomic methods are implemented for generic `T`
+//!
+//!`fetch_*` makes sense only to integers, hence they are implemented as specialized methods.
 
 #![no_std]
 #![warn(missing_docs)]
 #![cfg_attr(feature = "cargo-clippy", allow(clippy::style))]
-
-#[cfg(any(test, feature = "std"))]
-extern crate std;
 
 use core::mem;
 use core::cell::UnsafeCell;
@@ -18,9 +17,9 @@ pub use core::sync::atomic::Ordering;
 mod ops;
 
 #[repr(transparent)]
-///Generic Atomic which allows any `T` to be used as lock-free atomic integer.
+///Generic atomic which allows any `T` to be used as lock-free atomic integer.
 ///
-///This type allows only types whose size and alignment is compatible with `u8`, `u16`, `u32`, `u64`.
+///This atomic allows only types whose size and alignment is compatible with `u8`, `u16`, `u32`, `u64`.
 ///
 ///With exception of `fetch_*` methods, all atomic methods are implemented for generic `T`
 ///
@@ -30,8 +29,7 @@ pub struct Atomic<T> {
 }
 
 unsafe impl<T: Send> Sync for Atomic<T> {}
-#[cfg(feature = "std")]
-impl<T: Copy + std::panic::RefUnwindSafe> std::panic::RefUnwindSafe for Atomic<T> {}
+impl<T: Copy + core::panic::RefUnwindSafe> core::panic::RefUnwindSafe for Atomic<T> {}
 
 impl<T: Default> Default for Atomic<T> {
     #[inline(always)]

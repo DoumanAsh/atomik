@@ -5,7 +5,3 @@
 [![Documentation](https://docs.rs/atomik/badge.svg)](https://docs.rs/crate/atomik/)
 
 Generic `Atomic` implementation
-
-# Features
-
-- `std` Enables `std` only traits;
