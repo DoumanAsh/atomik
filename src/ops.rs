@@ -9,7 +9,7 @@ unsafe fn map_result<FROM, TO>(val: Result<FROM, FROM>) -> Result<TO, TO> {
 }
 
 macro_rules! impl_atomic_base {
-    ($ty:ident($atomic:ident)) => {
+    ($($ty:ident($atomic:ident)),*) => {$(
         pub mod $ty {
             use ::core::sync::atomic::$atomic;
             //transmute() doesn't work with generics, until it is fixed, use transmute_copy
@@ -58,19 +58,15 @@ macro_rules! impl_atomic_base {
                 }
             }
         }
-    };
+    )*};
 }
 
-impl_atomic_base!(bool(AtomicBool));
+#[cfg(target_has_atomic = "8")]
+impl_atomic_base!(bool(AtomicBool), u8(AtomicU8), i8(AtomicI8));
 
-impl_atomic_base!(u8(AtomicU8));
-impl_atomic_base!(u16(AtomicU16));
-impl_atomic_base!(u32(AtomicU32));
-impl_atomic_base!(u64(AtomicU64));
-impl_atomic_base!(usize(AtomicUsize));
-
-impl_atomic_base!(i8(AtomicI8));
-impl_atomic_base!(i16(AtomicI16));
-impl_atomic_base!(i32(AtomicI32));
-impl_atomic_base!(i64(AtomicI64));
-impl_atomic_base!(isize(AtomicIsize));
+#[cfg(target_has_atomic = "16")]
+impl_atomic_base!(u16(AtomicU16), i16(AtomicI16));
+#[cfg(target_has_atomic = "32")]
+impl_atomic_base!(u32(AtomicU32), i32(AtomicI32));
+#[cfg(target_has_atomic = "64")]
+impl_atomic_base!(u64(AtomicU64), i64(AtomicI64));
