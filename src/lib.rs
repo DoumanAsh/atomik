@@ -43,9 +43,13 @@ impl<T: Default> Default for Atomic<T> {
 macro_rules! match_size_arm {
     ($SIZE:expr => $fn:ident on $T:ident) => {
         match $SIZE {
+            #[cfg(target_has_atomic = "8")]
             1 if mem::align_of::<$T>() >= mem::align_of::<u8>() => ops::u8::$fn,
+            #[cfg(target_has_atomic = "16")]
             2 if mem::align_of::<$T>() >= mem::align_of::<u16>() => ops::u16::$fn,
+            #[cfg(target_has_atomic = "32")]
             4 if mem::align_of::<$T>() >= mem::align_of::<u32>() => ops::u32::$fn,
+            #[cfg(target_has_atomic = "64")]
             8 if mem::align_of::<$T>() >= mem::align_of::<u64>() => ops::u64::$fn,
             _ => unimplemented!(),
         }
