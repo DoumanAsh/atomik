@@ -4,7 +4,9 @@
 //!
 //!With exception of `fetch_*` methods, all atomic methods are implemented for generic `T`
 //!
-//!`fetch_*` makes sense only to integers, hence they are implemented as specialized methods.
+//!`fetch_*` makes sense only to integers and partially for bool, hence they are implemented as specialized methods.
+//!
+//!All methods require atomic support, if target has no atomics of required size, then it will fail to compile using particular methods.
 
 #![no_std]
 #![warn(missing_docs)]
@@ -25,6 +27,8 @@ mod ops;
 ///With exception of `fetch_*` methods, all atomic methods are implemented for generic `T`
 ///
 ///`fetch_*` makes sense only to integers, hence they are implemented as specialized methods.
+///
+///All methods require atomic support, if target has no atomics of required size, then it will fail to compile using particular methods.
 pub struct Atomic<T> {
     inner: UnsafeCell<T>
 }
@@ -39,7 +43,7 @@ impl<T: Default> Default for Atomic<T> {
     }
 }
 
-macro_rules! match_size_arm {
+macro_rules! match_atomic_size {
     ($SIZE:expr => $fn:ident on $T:ident) => {
         match $SIZE {
             #[cfg(target_has_atomic = "8")]
@@ -65,19 +69,19 @@ impl<T> Atomic<T> {
     };
 
     const LOAD: fn(*mut T, Ordering) -> T = {
-        match_size_arm!(Self::TYPE_SIZE => atomic_load on T)
+        match_atomic_size!(Self::TYPE_SIZE => atomic_load on T)
     };
     const STORE: fn(*mut T, T, Ordering) = {
-        match_size_arm!(Self::TYPE_SIZE => atomic_store on T)
+        match_atomic_size!(Self::TYPE_SIZE => atomic_store on T)
     };
     const SWAP: fn(*mut T, T, Ordering) -> T = {
-        match_size_arm!(Self::TYPE_SIZE => atomic_swap on T)
+        match_atomic_size!(Self::TYPE_SIZE => atomic_swap on T)
     };
     const CMP_EX: fn(*mut T, T, T, Ordering, Ordering) -> Result<T, T> = {
-        match_size_arm!(Self::TYPE_SIZE => atomic_compare_exchange on T)
+        match_atomic_size!(Self::TYPE_SIZE => atomic_compare_exchange on T)
     };
     const CMP_EX_WEAK: fn(*mut T, T, T, Ordering, Ordering) -> Result<T, T> = {
-        match_size_arm!(Self::TYPE_SIZE => atomic_compare_exchange_weak on T)
+        match_atomic_size!(Self::TYPE_SIZE => atomic_compare_exchange_weak on T)
     };
 
     #[inline]
