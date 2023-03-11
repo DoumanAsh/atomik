@@ -57,3 +57,6 @@ macro_rules! impl_atomic_load {
 }
 
 impl_atomic_load!(u8(AtomicU8));
+impl_atomic_load!(u16(AtomicU16));
+impl_atomic_load!(u32(AtomicU32));
+impl_atomic_load!(u64(AtomicU64));

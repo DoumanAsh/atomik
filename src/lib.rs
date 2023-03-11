@@ -51,30 +51,45 @@ impl<T> Atomic<T> {
     const LOAD: fn(*mut T, Ordering) -> T = {
         match Self::TYPE_SIZE {
             1 if mem::align_of::<T>() >= 1 => ops::u8::atomic_load,
+            2 if mem::align_of::<T>() >= 2 => ops::u16::atomic_load,
+            4 if mem::align_of::<T>() >= 4 => ops::u32::atomic_load,
+            8 if mem::align_of::<T>() >= 8 => ops::u64::atomic_load,
             _ => unimplemented!(),
         }
     };
     const STORE: fn(*mut T, T, Ordering) = {
         match Self::TYPE_SIZE {
             1 if mem::align_of::<T>() >= 1 => ops::u8::atomic_store,
+            2 if mem::align_of::<T>() >= 2 => ops::u16::atomic_store,
+            4 if mem::align_of::<T>() >= 4 => ops::u32::atomic_store,
+            8 if mem::align_of::<T>() >= 8 => ops::u64::atomic_store,
             _ => unimplemented!(),
         }
     };
     const SWAP: fn(*mut T, T, Ordering) -> T = {
         match Self::TYPE_SIZE {
             1 if mem::align_of::<T>() >= 1 => ops::u8::atomic_swap,
+            2 if mem::align_of::<T>() >= 2 => ops::u16::atomic_swap,
+            4 if mem::align_of::<T>() >= 4 => ops::u32::atomic_swap,
+            8 if mem::align_of::<T>() >= 8 => ops::u64::atomic_swap,
             _ => unimplemented!(),
         }
     };
     const CMP_EX: fn(*mut T, T, T, Ordering, Ordering) -> Result<T, T> = {
         match Self::TYPE_SIZE {
             1 if mem::align_of::<T>() >= 1 => ops::u8::atomic_compare_exchange,
+            2 if mem::align_of::<T>() >= 2 => ops::u16::atomic_compare_exchange,
+            4 if mem::align_of::<T>() >= 4 => ops::u32::atomic_compare_exchange,
+            8 if mem::align_of::<T>() >= 8 => ops::u64::atomic_compare_exchange,
             _ => unimplemented!(),
         }
     };
     const CMP_EX_WEAK: fn(*mut T, T, T, Ordering, Ordering) -> Result<T, T> = {
         match Self::TYPE_SIZE {
             1 if mem::align_of::<T>() >= 1 => ops::u8::atomic_compare_exchange_weak,
+            2 if mem::align_of::<T>() >= 2 => ops::u16::atomic_compare_exchange_weak,
+            4 if mem::align_of::<T>() >= 4 => ops::u32::atomic_compare_exchange_weak,
+            8 if mem::align_of::<T>() >= 8 => ops::u64::atomic_compare_exchange_weak,
             _ => unimplemented!(),
         }
     };
