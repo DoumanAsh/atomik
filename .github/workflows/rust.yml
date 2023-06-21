@@ -36,6 +36,11 @@ jobs:
              echo ::add-path::$HOME/.cargo/bin
         fi
 
+    - name: Install embedded targets
+      run: |
+        rustup target add riscv32imc-unknown-none-elf
+        rustup target add riscv32imac-unknown-none-elf
+
     - name: Install Miri
       run: |
         rustup toolchain install nightly
@@ -49,11 +54,20 @@ jobs:
         cargo --version
         rustc --version
 
+    - name: Check polyfill on target without atomics
+      run: cargo build --features critical-section-polyfill --target riscv32imc-unknown-none-elf
+
+    - name: Check polyfill on target with atomics
+      run: cargo build --features critical-section-polyfill --target riscv32imac-unknown-none-elf
+
     - name: Check build
       run: cargo clippy
 
     - name: Test
       run: cargo test
+
+    - name: Test Polyfill
+      run: cargo test --features critical-section-polyfill
 
     - name: Miri Test
       run: |

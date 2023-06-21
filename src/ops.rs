@@ -11,6 +11,9 @@ unsafe fn map_result<FROM, TO>(val: Result<FROM, FROM>) -> Result<TO, TO> {
 macro_rules! impl_atomic_base {
     ($($ty:ident($atomic:ident)),*) => {$(
         pub mod $ty {
+            #[cfg(feature = "critical-section-polyfill")]
+            use ::atomic_polyfill::$atomic;
+            #[cfg(not(feature = "critical-section-polyfill"))]
             use ::core::sync::atomic::$atomic;
             //transmute() doesn't work with generics, until it is fixed, use transmute_copy
             use ::core::mem::transmute_copy;
@@ -61,12 +64,12 @@ macro_rules! impl_atomic_base {
     )*};
 }
 
-#[cfg(target_has_atomic = "8")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "8"))]
 impl_atomic_base!(bool(AtomicBool), u8(AtomicU8), i8(AtomicI8));
 
-#[cfg(target_has_atomic = "16")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "16"))]
 impl_atomic_base!(u16(AtomicU16), i16(AtomicI16));
-#[cfg(target_has_atomic = "32")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "32"))]
 impl_atomic_base!(u32(AtomicU32), i32(AtomicI32));
-#[cfg(target_has_atomic = "64")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "64"))]
 impl_atomic_base!(u64(AtomicU64), i64(AtomicI64));

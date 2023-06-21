@@ -7,6 +7,10 @@
 //!`fetch_*` makes sense only to integers and partially for bool, hence they are implemented as specialized methods.
 //!
 //!All methods require atomic support, if target has no atomics of required size, then it will fail to compile using particular methods.
+//!
+//!## Features
+//!
+//!- `critical-section-polyfill` - Enables polyfill implementation for embedded targets based on critical section. This polyfill only valid for single threaded chips.
 
 #![no_std]
 #![warn(missing_docs)]
@@ -14,6 +18,9 @@
 
 use core::{fmt, mem};
 use core::cell::UnsafeCell;
+#[cfg(feature = "critical-section-polyfill")]
+use atomic_polyfill as atomic;
+#[cfg(not(feature = "critical-section-polyfill"))]
 use core::sync::atomic;
 pub use core::sync::atomic::Ordering;
 
@@ -46,13 +53,13 @@ impl<T: Default> Default for Atomic<T> {
 macro_rules! match_atomic_size {
     ($SIZE:expr => $fn:ident on $T:ident) => {
         match $SIZE {
-            #[cfg(target_has_atomic = "8")]
+            #[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "8"))]
             1 if mem::align_of::<$T>() >= mem::align_of::<u8>() => ops::u8::$fn,
-            #[cfg(target_has_atomic = "16")]
+            #[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "16"))]
             2 if mem::align_of::<$T>() >= mem::align_of::<u16>() => ops::u16::$fn,
-            #[cfg(target_has_atomic = "32")]
+            #[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "32"))]
             4 if mem::align_of::<$T>() >= mem::align_of::<u32>() => ops::u32::$fn,
-            #[cfg(target_has_atomic = "64")]
+            #[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "64"))]
             8 if mem::align_of::<$T>() >= mem::align_of::<u64>() => ops::u64::$fn,
             _ => unimplemented!(),
         }
@@ -272,40 +279,44 @@ macro_rules! impl_math_spec {
     )*};
 }
 
-#[cfg(target_has_atomic = "8")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "8"))]
 impl_common_spec!(i8(AtomicI8), u8(AtomicU8), bool(AtomicBool));
-#[cfg(target_has_atomic = "16")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "16"))]
 impl_common_spec!(i16(AtomicI16), u16(AtomicU16));
-#[cfg(target_has_atomic = "32")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "32"))]
 impl_common_spec!(i32(AtomicI32), u32(AtomicU32));
-#[cfg(target_has_atomic = "64")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "64"))]
 impl_common_spec!(i64(AtomicI64), u64(AtomicU64));
 
-#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
-impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
-#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
-impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
-#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
-impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
-#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
+#[cfg(
+    any(
+        feature = "critical-section-polyfill",
+        all(target_has_atomic = "64", target_pointer_width = "64"),
+        all(target_has_atomic = "32", target_pointer_width = "32"),
+        all(target_has_atomic = "16", target_pointer_width = "16"),
+        all(target_has_atomic = "8", target_pointer_width = "8"),
+    )
+)]
 impl_common_spec!(isize(AtomicIsize), usize(AtomicUsize));
 
-#[cfg(target_has_atomic = "8")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "8"))]
 impl_math_spec!(i8(AtomicI8), u8(AtomicU8));
-#[cfg(target_has_atomic = "16")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "16"))]
 impl_math_spec!(i16(AtomicI16), u16(AtomicU16));
-#[cfg(target_has_atomic = "32")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "32"))]
 impl_math_spec!(i32(AtomicI32), u32(AtomicU32));
-#[cfg(target_has_atomic = "64")]
+#[cfg(any(feature = "critical-section-polyfill", target_has_atomic = "64"))]
 impl_math_spec!(i64(AtomicI64), u64(AtomicU64));
 
-#[cfg(all(target_has_atomic = "64", target_pointer_width = "64"))]
-impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
-#[cfg(all(target_has_atomic = "32", target_pointer_width = "32"))]
-impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
-#[cfg(all(target_has_atomic = "16", target_pointer_width = "16"))]
-impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
-#[cfg(all(target_has_atomic = "8", target_pointer_width = "8"))]
+#[cfg(
+    any(
+        feature = "critical-section-polyfill",
+        all(target_has_atomic = "64", target_pointer_width = "64"),
+        all(target_has_atomic = "32", target_pointer_width = "32"),
+        all(target_has_atomic = "16", target_pointer_width = "16"),
+        all(target_has_atomic = "8", target_pointer_width = "8"),
+    )
+)]
 impl_math_spec!(isize(AtomicIsize), usize(AtomicUsize));
 
 impl<T: Copy + fmt::Debug> fmt::Debug for Atomic<T> {
